@@ -51,19 +51,19 @@ void ECB_LEA_Dec(unsigned char pt[][LEA_BLOCK_LEN], const unsigned char ct[][LEA
 //####################################################################
 //CBC
 
-void CBC_LEA_Enc(unsigned char ct[][LEA_BLOCK_LEN], const unsigned char pt[][LEA_BLOCK_LEN],
-const unsigned char MasterKey[LEA_MAX_KEY_LEN], const char IV[LEA_BLOCK_LEN] )
-{
+// void CBC_LEA_Enc(unsigned char ct[][LEA_BLOCK_LEN], const unsigned char pt[][LEA_BLOCK_LEN],
+// const unsigned char MasterKey[LEA_MAX_KEY_LEN], const char IV[LEA_BLOCK_LEN] )
+// {
 
 
-}
+// }
 
-void CBC_LEA_Dec(unsigned char pt[][LEA_BLOCK_LEN], const unsigned char ct[][LEA_BLOCK_LEN],
-const unsigned char MasterKey[LEA_MAX_KEY_LEN], const char IV[LEA_BLOCK_LEN])
-{
+// void CBC_LEA_Dec(unsigned char pt[][LEA_BLOCK_LEN], const unsigned char ct[][LEA_BLOCK_LEN],
+// const unsigned char MasterKey[LEA_MAX_KEY_LEN], const char IV[LEA_BLOCK_LEN])
+// {
 
 
-}
+// }
 
 
 
@@ -72,14 +72,15 @@ const unsigned char MasterKey[LEA_MAX_KEY_LEN], const char IV[LEA_BLOCK_LEN])
 
 //####################################################################
 //CTR
-void CTR_LEA_Enc(unsigned char ct[][LEA_BLOCK_LEN], const unsigned char pt[][LEA_BLOCK_LEN],
-    const unsigned char MasterKey[LEA_MAX_KEY_LEN], const char IV[LEA_BLOCK_LEN])
-{
 
-}
+// void CTR_LEA_Enc(unsigned char ct[][LEA_BLOCK_LEN], const unsigned char pt[][LEA_BLOCK_LEN],
+//     const unsigned char MasterKey[LEA_MAX_KEY_LEN], const char IV[LEA_BLOCK_LEN])
+// {
 
-void CTR_LEA_Dec(unsigned char pt[][LEA_BLOCK_LEN], const unsigned char ct[][LEA_BLOCK_LEN],
-    const unsigned char MasterKey[LEA_MAX_KEY_LEN], const char IV[LEA_BLOCK_LEN])
-{
+// }
 
-}
+// void CTR_LEA_Dec(unsigned char pt[][LEA_BLOCK_LEN], const unsigned char ct[][LEA_BLOCK_LEN],
+//     const unsigned char MasterKey[LEA_MAX_KEY_LEN], const char IV[LEA_BLOCK_LEN])
+// {
+
+// }
