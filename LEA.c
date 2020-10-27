@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "LEA.h"
 
 #define ROR(W,i)    (((uint32_t)(W)>>(int)(i)) | ((uint32_t)(W)<<(32-(int)(i))))
@@ -19,12 +20,12 @@ const uint32_t delta[8] = { 0xc3efe9db,0x44626b02,0x79e27c8a,0x78df30ec,
 *
 * return value is round key length
 */
-int LEA_Key_Schedule(uint32_t RndKeys[LEA_MAX_RNDS][LEA_RNDKEY_WORD_LEN],
-    const unsigned char MasterKey[LEA_MAX_KEY_LEN],
-    const int KeyBytes)
+int LEA_Key_Schedule(uint32_t RndKeys[LEA_MAX_RNDS][LEA_RNDKEY_WORD_LEN], 
+                     const unsigned char MasterKey[LEA_MAX_KEY_LEN], const int KeyBytes)
 {
     uint32_t T[8] = { 0x0, };
     int i;
+    
     if (KeyBytes == LEA_128_KEY_LEN)//LEA-128
     {
         T[0] = BTOW(MasterKey);
@@ -115,7 +116,7 @@ int LEA_Key_Schedule(uint32_t RndKeys[LEA_MAX_RNDS][LEA_RNDKEY_WORD_LEN],
 
 
 void LEA_Encryption(unsigned char ct[LEA_BLOCK_LEN], const unsigned char pt[LEA_BLOCK_LEN],
-    uint32_t RndKeys[LEA_MAX_RNDS][LEA_RNDKEY_WORD_LEN], const int Nr)
+                    uint32_t RndKeys[LEA_MAX_RNDS][LEA_RNDKEY_WORD_LEN], const int Nr)
 {
     uint32_t X0, X1, X2, X3;
     uint32_t temp;
@@ -143,7 +144,7 @@ void LEA_Encryption(unsigned char ct[LEA_BLOCK_LEN], const unsigned char pt[LEA_
 }
 
 void LEA_Decryption(unsigned char pt[LEA_BLOCK_LEN], const unsigned char ct[LEA_BLOCK_LEN],
-    uint32_t RndKeys[LEA_MAX_RNDS][LEA_RNDKEY_WORD_LEN], const int Nr)
+                    uint32_t RndKeys[LEA_MAX_RNDS][LEA_RNDKEY_WORD_LEN], const int Nr)
 {
     uint32_t X0, X1, X2, X3;
     uint32_t temp0, temp1, temp2;
@@ -174,5 +175,162 @@ void LEA_Decryption(unsigned char pt[LEA_BLOCK_LEN], const unsigned char ct[LEA_
 
 
 
+void ECB_LEA_Enc(unsigned char *ct, const unsigned char *pt,
+                 const unsigned char MasterKey[LEA_MAX_KEY_LEN], const int pt_size, const int KeyBytes)
+{
+    uint32_t RK[LEA_MAX_RNDS][LEA_RNDKEY_WORD_LEN];
+    int LEA_Rounds = LEA_Key_Schedule(RK, MasterKey, KeyBytes);
+    for (int i = 0; i < pt_size; i++)
+    {
+        LEA_Encryption(ct + (i * 16), pt + (i * 16), RK, LEA_Rounds);
+    }
 
+}
+
+void ECB_LEA_Dec(unsigned char *pt, const unsigned char *ct,
+    const unsigned char MasterKey[LEA_MAX_KEY_LEN], const int ct_size, const int KeyBytes)
+{
+    uint32_t RK[LEA_MAX_RNDS][LEA_RNDKEY_WORD_LEN];
+    int LEA_Rounds = LEA_Key_Schedule(RK, MasterKey, KeyBytes);
+    for (int i = 0; i < ct_size; i++)
+    {
+        LEA_Decryption(pt + (i * 16), ct + (i * 16), RK, LEA_Rounds);
+    }
+
+}
+
+
+
+
+void CBC_LEA_Enc(unsigned char *ct, const unsigned char *pt, const unsigned char MasterKey[LEA_MAX_KEY_LEN], 
+                 const unsigned char IV[LEA_BLOCK_LEN], const int pt_size, const int KeyBytes)
+{
+    uint32_t RK[LEA_MAX_KEY_LEN][LEA_RNDKEY_WORD_LEN];
+    int i,j;
+    unsigned char X[LEA_BLOCK_LEN];
+
+    int LEA_Rounds = LEA_Key_Schedule(RK, MasterKey, KeyBytes);
+
+    for(i=0;i<LEA_BLOCK_LEN; i++)
+        X[i]=pt[i]^IV[i];
+
+    LEA_Encryption(ct,X,RK,LEA_Rounds);
+
+    for(i=1; i<pt_size; i++)
+    {
+        for(j=0; j<LEA_BLOCK_LEN; j++)
+            X[j]=pt[i*16+j]^ct[(i-1)*16+j];
+
+        LEA_Encryption(ct+(i*16), X, RK, LEA_Rounds);
+    }
+}
+
+void CBC_LEA_Dec(unsigned char *pt, const unsigned char *ct, const unsigned char MasterKey[LEA_MAX_KEY_LEN], 
+                 const unsigned char IV[LEA_BLOCK_LEN], const int ct_size, const int KeyBytes)
+{
+     uint32_t RK[LEA_MAX_KEY_LEN][LEA_RNDKEY_WORD_LEN];
+     int i,j;
+     unsigned char X[LEA_BLOCK_LEN];
+     int LEA_Rounds = LEA_Key_Schedule(RK, MasterKey, KeyBytes);
+
+     LEA_Decryption(X,ct,RK,LEA_Rounds);
+
+     for(i=0;i<LEA_BLOCK_LEN; i++)
+        pt[i]=X[i]^IV[i];
+
+     for(i=1; i<ct_size; i++)
+     {
+         LEA_Decryption(X,ct+(i*16),RK,LEA_Rounds);
+         for(j=0; j<LEA_BLOCK_LEN; j++)
+             pt[i*16+j]=X[j]^ct[(i-1)*16+j];
+     }
+}
+
+
+void CTR_LEA_Enc(unsigned char* ct, const unsigned char* pt, const unsigned char MasterKey[LEA_MAX_KEY_LEN], 
+                 const unsigned char IV[LEA_BLOCK_LEN], const int pt_size, const int KeyBytes)
+{
+    uint32_t RK[LEA_MAX_KEY_LEN][LEA_RNDKEY_WORD_LEN];
+    int i, j;
+    unsigned char CTR[LEA_BLOCK_LEN];
+    unsigned char Y[LEA_BLOCK_LEN];
+    int n;
+    
+    int num_Blocks = pt_size >> 4;
+    int remain_chars = pt_size & 0xf;
+
+    int LEA_Rounds = LEA_Key_Schedule(RK, MasterKey, KeyBytes);
+
+    for (i = 0; i < LEA_BLOCK_LEN; i++)
+        CTR[i] = IV[i];
+
+    for (i = 0; i < num_Blocks; i++)
+    {
+        LEA_Encryption(Y, CTR, RK, LEA_Rounds);
+        for (j = 0; j < LEA_BLOCK_LEN; j++)
+        {
+            ct[i * 16 + j] = pt[i * 16 + j] ^ Y[j];
+        }
+        
+        for (n = 15; n >= 0; n--)
+        {
+            CTR[n]++;
+            if (CTR[n])
+                break;
+        }
+    }
+
+    if (remain_chars)
+    {
+        LEA_Encryption(Y, CTR, RK, LEA_Rounds);
+        for ( i = 0; i < remain_chars; i++)
+        {
+            ct[num_Blocks * 16 + i] = pt[num_Blocks * 16 + i] ^ Y[i];
+        }
+    }
+
+}
+
+void CTR_LEA_Dec(unsigned char* pt, const unsigned char* ct, const unsigned char MasterKey[LEA_MAX_KEY_LEN], 
+                 const unsigned char IV[LEA_BLOCK_LEN], const int ct_size, const int KeyBytes)
+{
+    uint32_t RK[LEA_MAX_KEY_LEN][LEA_RNDKEY_WORD_LEN];
+    int i, j;
+    unsigned char CTR[LEA_BLOCK_LEN];
+    unsigned char Y[LEA_BLOCK_LEN];
+    int n;
+    
+    int num_Blocks = ct_size >> 4;
+    int remain_chars = ct_size & 0xf;
+
+    int LEA_Rounds = LEA_Key_Schedule(RK, MasterKey, KeyBytes);
+
+    for (i = 0; i < LEA_BLOCK_LEN; i++)
+        CTR[i] = IV[i];
+
+    for (i = 0; i < num_Blocks; i++)
+    {
+        LEA_Encryption(Y, CTR, RK, LEA_Rounds);
+        for (j = 0; j < LEA_BLOCK_LEN; j++)
+        {
+            pt[i * 16 + j] = ct[i * 16 + j] ^ Y[j];
+        }
+
+        for (n = 15; n >= 0; n--)
+        {
+            CTR[n]++;
+            if (CTR[n])
+                break;
+        }
+    }
+
+    if (remain_chars)
+    {
+        LEA_Encryption(Y, CTR, RK, LEA_Rounds);
+        for (i = 0; i < remain_chars; i++)
+        {
+            pt[num_Blocks * 16 + i] = ct[num_Blocks * 16 + i] ^ Y[i];
+        }
+    }
+}
 
